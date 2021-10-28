@@ -1,0 +1,29 @@
+{
+  "name": "game-library-manager",
+  "version": "1.0.0",
+  "description": "A cli game (Steam) library manager",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DevelopmentCubed/game-library-manager.git"
+  },
+  "author": "Hazed SPaCEx",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/DevelopmentCubed/game-library-manager/issues"
+  },
+  "homepage": "https://github.com/DevelopmentCubed/game-library-manager#readme",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "clear": "^0.1.0",
+    "conf": "^10.0.3",
+    "figlet": "^1.5.2",
+    "inquirer": "^8.2.0",
+    "numeral": "^2.0.6",
+    "progress": "^2.0.3",
+    "steam-acf2json": "^0.1.1"
+  }
+}
