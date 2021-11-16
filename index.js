@@ -71,6 +71,7 @@ async function mainMenu(doClear = false) {
 
 			let gameFiles = 0;
 			let gameSize = 0;
+			let copySize = 0;
 
 			function exploreDirectory(base, directory, destination) {
 				const files = fs.readdirSync(path.join(base, directory));
@@ -88,8 +89,13 @@ async function mainMenu(doClear = false) {
 							files: exploreDirectory(path.join(base, directory), file, destPath),
 						};
 					} else {
-						gameFiles++;
 						gameSize += stat.size;
+						if (fs.existsSync(destPath)) {
+							const dest = fs.statSync(destPath);
+							if (stat.size === dest.size) continue;
+						}
+						copySize += stat.size;
+						gameFiles++;
 						tree[file] = {
 							type: 'file',
 							source: filePath,
@@ -102,22 +108,57 @@ async function mainMenu(doClear = false) {
 				return tree;
 			}
 
-			function CopyFile(file, position) {
-				return new Promise((resolve) => {
-					let bytesCopied = 0;
-					const progress = new Progress(`[:bar] :rate MB/s :percent :etas`, {
-						complete: chalk.greenBright('='),
-						incomplete: ' ',
-						width: 100,
-						total: file.size / 1024 / 1024,
-					});
+			let filesCopied = 0;
 
+			function exploreTree(object) {
+				return new Promise(async (resolve) => {
+					for (const key in object) {
+						const prop = object[key];
+						const exists = fs.existsSync(prop.destination);
+						if (prop.type === 'dir') {
+							if (!exists) {
+								fs.mkdirSync(prop.destination);
+							}
+							await exploreTree(prop.files);
+						} else {
+							filesCopied++;
+							if (exists) {
+								const stat = fs.statSync(prop.destination);
+								if (stat.size === prop.size) continue;
+							}
+							await CopyFile(prop);
+						}
+					}
+
+					resolve(true);
+				});
+			}
+
+			const destinationBase = path.join(paths.destination, 'steamapps', 'common', game.dir);
+
+			const tree = exploreDirectory(path.join(paths.source, 'steamapps', 'common'), game.dir, destinationBase);
+
+			const progress = new Progress(`[:bar] :percent - :rate MB/s - ETA :etas - :pos :size :file`, {
+				complete: chalk.greenBright('='),
+				incomplete: ' ',
+				width: 20,
+				total: copySize / 1024 / 1024,
+				clear: true,
+			});
+
+			function CopyFile(file) {
+				const size = numeral(file.size).format('0,0.00b');
+				const name = file.destination.split(/\\|\//g).pop();
+				return new Promise((resolve) => {
 					const readStream = fs.createReadStream(file.source);
 					const writeStream = fs.createWriteStream(file.destination);
 
 					readStream.on('data', function (buffer) {
-						// bytesCopied += buffer.length;
-						progress.tick(buffer.length / 1024 / 1024);
+						progress.tick(buffer.length / 1024 / 1024, {
+							pos: `${filesCopied}/${gameFiles}`,
+							file: name,
+							size,
+						});
 					});
 
 					readStream.on('end', function () {
@@ -138,38 +179,6 @@ async function mainMenu(doClear = false) {
 				});
 			}
 
-			let filesCopied = 0;
-
-			function exploreTree(object) {
-				return new Promise(async (resolve) => {
-					for (const key in object) {
-						const prop = object[key];
-						const exists = fs.existsSync(prop.destination);
-						if (prop.type === 'dir') {
-							if (!exists) {
-								console.log(`Creating - ${prop.destination}`);
-								fs.mkdirSync(prop.destination);
-							}
-							await exploreTree(prop.files);
-						} else {
-              filesCopied++;
-							if (exists) {
-								const stat = fs.statSync(prop.destination);
-								if (stat.size === prop.size) continue;
-							}
-							console.log(`${filesCopied}/${gameFiles} - ${numeral(prop.size).format('0,0.00b')} - ${prop.destination}`);
-							await CopyFile(prop);
-						}
-					}
-
-					resolve(true);
-				});
-			}
-
-			const destinationBase = path.join(paths.destination, 'steamapps', 'common', game.dir);
-
-			const tree = exploreDirectory(path.join(paths.source, 'steamapps', 'common'), game.dir, destinationBase);
-
 			const confirm = await questions.confirm(game.name, numeral(gameSize).format('0,0.00b'));
 
 			if (confirm.option === 'no') {
@@ -184,8 +193,8 @@ async function mainMenu(doClear = false) {
 				destination: path.join(paths.destination, 'steamapps', game.file),
 				size: 0,
 			};
-
 			await exploreTree(tree);
+			progress.update(1);
 
 			console.log(chalk.greenBright(`Finished copying ${game.name}`));
 			mainMenu();

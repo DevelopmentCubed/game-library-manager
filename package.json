@@ -15,6 +15,11 @@
   "bugs": {
     "url": "https://github.com/DevelopmentCubed/game-library-manager/issues"
   },
+  "bin": "index.js",
+  "pkg": {
+    "assets": "node_modules/figlet/fonts/Standard.flf",
+    "outputPath": "build"
+  },
   "homepage": "https://github.com/DevelopmentCubed/game-library-manager#readme",
   "dependencies": {
     "chalk": "^4.1.2",
